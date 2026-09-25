@@ -1,0 +1,28 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check private files are not tracked
+        shell: pwsh
+        run: |
+          $privateFiles = git ls-files -- 'detected-videos*.jsonl' 'downloads/**' 'dist/**' '*.session*' '*.mp4'
+          if ($privateFiles) {
+            Write-Error "Private or generated files are tracked: $privateFiles"
+            exit 1
+          }
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run tests
+        run: python -m unittest -v

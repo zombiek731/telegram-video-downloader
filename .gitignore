@@ -1,0 +1,30 @@
+# Python and local environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Generated builds
+build/
+build-*/
+dist/
+dist-*/
+
+# Local credentials, browser data, logs, and downloaded media
+.env
+.env.*
+*.session*
+*.sqlite*
+*.db
+History
+History-journal
+*.log
+detected-videos*.jsonl
+downloads/
+*.part
+*.mp4
+*.m4v
+*.mov
+*.webm
+*.mkv
+*.avi

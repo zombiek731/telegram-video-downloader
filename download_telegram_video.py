@@ -443,10 +443,10 @@ def ensure_debugging_endpoint(
     if not launch_telegram:
         raise RuntimeError(f"No WebView2 debugging endpoint on 127.0.0.1:{port}")
     if telegram_is_running():
-        raise RuntimeError(
-            "Telegram is already running without WebView debugging. Exit Telegram "
-            "completely (including the tray icon), then run --monitor again."
-        )
+        if on_status:
+            on_status("Telegram running. Open a Mini App to connect.")
+        wait_for_debugging_endpoint(port, 120)
+        return
 
     executable = telegram_executable()
     if not executable or not executable.is_file():

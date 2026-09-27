@@ -170,6 +170,8 @@ class VideoAssistant(QMainWindow):
     def status_label_set(self, message: str) -> None:
         if message.startswith("Telegram started"):
             message = "Telegram 已启动。请打开小程序，正在等待监听连接…"
+        elif message.startswith("Telegram running. Open a Mini App"):
+            message = "Telegram 正在运行。请打开小程序，正在等待自动连接…"
         self.status_label.setText(message)
 
     def start_monitor(self) -> None:
@@ -188,22 +190,35 @@ class VideoAssistant(QMainWindow):
             monitor_log=None,
             dedupe_seconds=3.0,
         )
-        try:
-            monitor_video_links(
-                args,
-                on_video=self.events.video.emit,
-                on_status=self.events.monitor_status.emit,
-                stop_event=self.monitor_stop,
-            )
-            if not self.monitor_stop.is_set():
-                self.events.monitor_stopped.emit("监听已停止")
-        except Exception as error:
-            message = str(error)
-            if "already running without WebView debugging" in message:
-                message = "Telegram 已在运行但没有开启监听。请从系统托盘完全退出 Telegram，再点击重试连接。"
-            elif "Telegram.exe was not found" in message:
-                message = "找不到 Telegram Desktop。请确认已经安装并登录。"
-            self.events.monitor_stopped.emit(message)
+        while not self.monitor_stop.is_set():
+            try:
+                monitor_video_links(
+                    args,
+                    on_video=self.events.video.emit,
+                    on_status=self.events.monitor_status.emit,
+                    stop_event=self.monitor_stop,
+                )
+                if not self.monitor_stop.is_set():
+                    self.events.monitor_stopped.emit("监听已停止")
+                return
+            except Exception as error:
+                message = str(error)
+                if "WebView2 debugging connection closed" in message:
+                    self.events.monitor_status.emit(
+                        "小程序连接已断开。请重新打开小程序，正在等待自动连接…"
+                    )
+                    if self.monitor_stop.wait(1):
+                        return
+                    continue
+                if "WebView2 debugging endpoint did not appear" in message:
+                    message = (
+                        "未检测到 Telegram 小程序监听。请先打开小程序；若已打开仍无法连接，"
+                        "请从系统托盘完全退出 Telegram，再点击重试连接。"
+                    )
+                elif "Telegram.exe was not found" in message:
+                    message = "找不到 Telegram Desktop。请确认已经安装并登录。"
+                self.events.monitor_stopped.emit(message)
+                return
 
     def monitor_stopped(self, message: str) -> None:
         self.status_label.setText(message)

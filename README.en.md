@@ -31,7 +31,7 @@ Verified on Windows 11 x64 with Python 3.12 and Telegram Desktop. Windows 10 x64
 
 Closing the window leaves the assistant in the system tray. Choosing “Exit” from the tray stops monitoring and the current download. The EXE saves to the user's `Downloads/Telegram Videos` by default; source runs save to the repository's `downloads` folder. The location can be changed in the UI.
 
-If Telegram is already running without monitoring enabled, exit it completely from the tray and click “Retry connection.” If authentication expires, reopen the Mini App in Telegram and retry the download.
+If Telegram is running but the debugging endpoint is temporarily unavailable, the assistant waits for a Mini App to open. If opening it still does not connect, exit Telegram completely from the tray and click “Retry connection.” After a Mini App closes, the assistant reconnects when you reopen it; click “Retry connection” if the wait times out. If authentication expires, reopen the Mini App in Telegram and retry the download.
 
 ## Using an EXE
 

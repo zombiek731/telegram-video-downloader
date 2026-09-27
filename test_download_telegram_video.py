@@ -12,6 +12,7 @@ from download_telegram_video import (
     TelegramAuthenticationError,
     download_detected_video,
     download_video,
+    ensure_debugging_endpoint,
     is_video_response,
     lookup_video_title,
     monitor_video_links,
@@ -26,6 +27,31 @@ from download_telegram_video import (
 
 
 class MonitorHelpersTest(unittest.TestCase):
+    @patch("download_telegram_video.wait_for_debugging_endpoint")
+    @patch("download_telegram_video.telegram_is_running", return_value=True)
+    @patch("download_telegram_video.debugging_browser", side_effect=OSError)
+    def test_waits_for_webview_when_telegram_is_running(
+        self, _debugging_browser, _telegram_is_running, wait_for_endpoint
+    ):
+        statuses = []
+
+        ensure_debugging_endpoint(9222, True, on_status=statuses.append)
+
+        wait_for_endpoint.assert_called_once_with(9222, 120)
+        self.assertEqual(statuses, ["Telegram running. Open a Mini App to connect."])
+
+    @patch(
+        "download_telegram_video.wait_for_debugging_endpoint",
+        side_effect=RuntimeError("WebView2 debugging endpoint did not appear"),
+    )
+    @patch("download_telegram_video.telegram_is_running", return_value=True)
+    @patch("download_telegram_video.debugging_browser", side_effect=OSError)
+    def test_reports_timeout_when_running_telegram_has_no_endpoint(
+        self, _debugging_browser, _telegram_is_running, _wait_for_endpoint
+    ):
+        with self.assertRaisesRegex(RuntimeError, "endpoint did not appear"):
+            ensure_debugging_endpoint(9222, True)
+
     def test_monitor_does_not_save_signed_urls_by_default(self):
         with patch.object(sys, "argv", ["download_telegram_video.py", "--monitor"]):
             self.assertIsNone(parse_args().monitor_log)

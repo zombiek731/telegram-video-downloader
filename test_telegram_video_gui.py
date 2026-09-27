@@ -33,6 +33,31 @@ class VideoAssistantTest(unittest.TestCase):
         self.window.close()
         self.app.processEvents()
 
+    @patch("telegram_video_gui.monitor_video_links")
+    def test_reconnects_after_webview_disconnects(self, monitor):
+        def run(_args, **_kwargs):
+            if monitor.call_count == 1:
+                raise RuntimeError("WebView2 debugging connection closed: disconnected")
+            self.window.monitor_stop.set()
+            return 0
+
+        monitor.side_effect = run
+        with patch.object(self.window.monitor_stop, "wait", return_value=False):
+            self.window.run_monitor()
+
+        self.assertEqual(monitor.call_count, 2)
+        self.assertIn("重新打开小程序", self.window.status_label.text())
+
+    @patch("telegram_video_gui.monitor_video_links")
+    def test_timeout_explains_how_to_reconnect(self, monitor):
+        monitor.side_effect = RuntimeError("WebView2 debugging endpoint did not appear")
+
+        self.window.run_monitor()
+
+        self.assertIn("打开小程序", self.window.status_label.text())
+        self.assertIn("完全退出 Telegram", self.window.status_label.text())
+        self.assertTrue(self.window.retry_button.isEnabled())
+
     def test_deduplicates_by_video_id_and_ignores_unsupported_sources(self):
         self.window.add_video(record("100", "First"))
         self.window.add_video(record("101", "Second"))

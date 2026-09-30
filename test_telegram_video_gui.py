@@ -1,4 +1,7 @@
 import os
+import subprocess
+import sys
+import tempfile
 import threading
 import time
 import unittest
@@ -8,6 +11,7 @@ from unittest.mock import patch
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QSettings
 
 from telegram_video_gui import VideoAssistant
 
@@ -32,6 +36,43 @@ class VideoAssistantTest(unittest.TestCase):
     def tearDown(self):
         self.window.close()
         self.app.processEvents()
+
+    def test_changed_folder_survives_process_exit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            settings_file = str(Path(directory) / "settings.ini")
+            folder = str(Path(directory) / "自定义下载")
+            subprocess.run(
+                [sys.executable, "-c", """
+import os
+import sys
+from unittest.mock import patch
+from PySide6.QtCore import QSettings
+from PySide6.QtWidgets import QApplication
+from telegram_video_gui import VideoAssistant
+app = QApplication([])
+settings = QSettings(sys.argv[1], QSettings.Format.IniFormat)
+with patch('telegram_video_gui.QSettings', return_value=settings):
+    window = VideoAssistant(start_monitor=False, use_tray=False)
+with patch('telegram_video_gui.QFileDialog.getExistingDirectory', return_value=sys.argv[2]):
+    window.choose_folder()
+os._exit(0)
+""", settings_file, folder],
+                check=True,
+                cwd=Path(__file__).resolve().parent,
+            )
+            settings = QSettings(settings_file, QSettings.Format.IniFormat)
+            with patch("telegram_video_gui.QSettings", return_value=settings):
+                reopened = VideoAssistant(start_monitor=False, use_tray=False)
+            try:
+                self.assertEqual(reopened.output_dir, Path(folder))
+                self.assertEqual(reopened.folder_label.text(), folder)
+                with patch("telegram_video_gui.QFileDialog.getExistingDirectory", return_value="") as dialog:
+                    reopened.choose_folder()
+                dialog.assert_called_once_with(reopened, "选择下载位置", folder)
+                self.assertEqual(reopened.output_dir, Path(folder))
+                self.assertEqual(settings.value("output_dir"), folder)
+            finally:
+                reopened.close()
 
     @patch("telegram_video_gui.monitor_video_links")
     def test_reconnects_after_webview_disconnects(self, monitor):

@@ -353,6 +353,7 @@ class VideoAssistant(QMainWindow):
         if folder:
             self.output_dir = Path(folder)
             self.settings.setValue("output_dir", folder)
+            self.settings.sync()
             self.folder_label.setText(folder)
 
     def open_folder(self) -> None:
